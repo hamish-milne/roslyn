@@ -558,5 +558,18 @@ namespace Microsoft.CodeAnalysis.CSharp
         RefExpression = 9050,
         RefType = 9051,
         ThrowExpression = 9052,
+
+        // ======== OHDL ========
+        
+        BitKeyword = 10200,
+        RegKeyword = 10201,
+        EdgeKeyword = 10202,
+        TaskKeyword = 10203,
+
+        DeltaExpression = 10300, // A -> B
+
+
+
+        // ======================
     }
 }

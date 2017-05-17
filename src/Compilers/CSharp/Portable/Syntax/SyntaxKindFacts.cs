@@ -34,7 +34,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public static bool IsReservedKeyword(SyntaxKind kind)
         {
-            return kind >= SyntaxKind.BoolKeyword && kind <= SyntaxKind.ImplicitKeyword;
+            return kind >= SyntaxKind.BoolKeyword && kind <= SyntaxKind.ImplicitKeyword
+                || kind >= SyntaxKind.TaskKeyword && kind <= SyntaxKind.BitKeyword; // OHDL
         }
 
         public static bool IsAttributeTargetSpecifier(SyntaxKind kind)
@@ -949,6 +950,16 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return SyntaxKind.ImplicitKeyword;
                 case "explicit":
                     return SyntaxKind.ExplicitKeyword;
+                // ======== OHDL ========
+                case "bit":
+                    return SyntaxKind.BitKeyword;
+                case "reg":
+                    return SyntaxKind.RegKeyword;
+                case "edge":
+                    return SyntaxKind.EdgeKeyword;
+                case "task":
+                    return SyntaxKind.TaskKeyword;
+                // ======================
                 default:
                     return SyntaxKind.None;
             }

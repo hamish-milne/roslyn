@@ -1233,6 +1233,8 @@ tryAgain:
             Unsafe = 0x2000,
             Partial = 0x4000,
             Async = 0x8000,
+            Edge = 0x10000,
+            Task = 0x20000,
         }
 
         private const SyntaxModifier AccessModifiers = SyntaxModifier.Public | SyntaxModifier.Internal | SyntaxModifier.Protected | SyntaxModifier.Private;
@@ -1241,6 +1243,12 @@ tryAgain:
         {
             switch (token.Kind)
             {
+                // ======== OHDL ========
+                case SyntaxKind.EdgeKeyword:
+                    return SyntaxModifier.Edge;
+                case SyntaxKind.TaskKeyword:
+                    return SyntaxModifier.Task;
+                // ======================
                 case SyntaxKind.PublicKeyword:
                     return SyntaxModifier.Public;
                 case SyntaxKind.InternalKeyword:
@@ -4429,7 +4437,7 @@ tryAgain:
                     type,
                     explicitInterfaceOpt, //already has an appropriate error attached
                     missingIdentifier,
-                    missingAccessorList);
+                    missingAccessorList, null, null); // OHDL
             }
 
             SyntaxToken identifier;
@@ -4462,7 +4470,9 @@ tryAgain:
                 identifier = this.AddError(identifier, ErrorCode.ERR_UnexpectedGenericName);
             }
 
-            var accessorList = this.ParseAccessorList(isEvent: true);
+            // ======== OHDL ========
+            //var accessorList = this.ParseAccessorList(isEvent: true);
+            this.ParseBlockAndExpressionBodiesWithSemicolon(out var blockBody, out var expressionBody, out var semicolon);
 
             var decl = _syntaxFactory.EventDeclaration(
                 attributes,
@@ -4471,11 +4481,10 @@ tryAgain:
                 type,
                 explicitInterfaceOpt,
                 identifier,
-                accessorList);
+                null, expressionBody, blockBody); // OHDL
 
-            decl = EatUnexpectedTrailingSemicolon(decl);
-
-            return decl;
+            return CheckForBlockAndExpressionBody(blockBody, expressionBody, decl);
+            // ======================
         }
 
         private TNode EatUnexpectedTrailingSemicolon<TNode>(TNode decl) where TNode : CSharpSyntaxNode

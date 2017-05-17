@@ -12,6 +12,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 case SyntaxKind.VoidKeyword:
                     return SpecialType.System_Void;
+                case SyntaxKind.BitKeyword: // OHDL
                 case SyntaxKind.BoolKeyword:
                     return SpecialType.System_Boolean;
                 case SyntaxKind.ByteKeyword:

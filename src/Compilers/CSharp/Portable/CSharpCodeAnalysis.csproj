@@ -806,6 +806,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Syntax\CSharpSyntaxTree.Dummy.cs" />
+    <Content Include="Syntax\Syntax.xml" />
     <Content Include="UseSiteDiagnosticsCheckEnforcer\BaseLine.txt" />
     <Content Include="UseSiteDiagnosticsCheckEnforcer\Run.bat" />
     <None Include="FlowAnalysis\Flow Analysis Design.docx" />
