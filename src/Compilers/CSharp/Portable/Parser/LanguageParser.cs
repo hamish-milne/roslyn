@@ -4437,7 +4437,7 @@ tryAgain:
                     type,
                     explicitInterfaceOpt, //already has an appropriate error attached
                     missingIdentifier,
-                    missingAccessorList, null, null); // OHDL
+                    null, missingAccessorList, null, null); // OHDL
             }
 
             SyntaxToken identifier;
@@ -4471,6 +4471,9 @@ tryAgain:
             }
 
             // ======== OHDL ========
+
+	        var triggerExpression = this.ParseExpression();
+
             //var accessorList = this.ParseAccessorList(isEvent: true);
             this.ParseBlockAndExpressionBodiesWithSemicolon(out var blockBody, out var expressionBody, out var semicolon);
 
@@ -4481,7 +4484,7 @@ tryAgain:
                 type,
                 explicitInterfaceOpt,
                 identifier,
-                null, expressionBody, blockBody); // OHDL
+                triggerExpression, null, expressionBody, blockBody); // OHDL
 
             return CheckForBlockAndExpressionBody(blockBody, expressionBody, decl);
             // ======================

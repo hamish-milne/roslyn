@@ -3439,14 +3439,15 @@
     </Field>
     <Field Name="Type" Type="TypeSyntax" Override="true"/>
     <Field Name="ExplicitInterfaceSpecifier" Type="ExplicitInterfaceSpecifierSyntax" Optional="true" Override="true"/>
-    <Field Name="Identifier" Type="SyntaxToken">
+    <Field Name="Identifier" Type="SyntaxToken" Optional="true"> <!-- OHDL -->
       <PropertyComment>
         <summary>Gets the identifier.</summary>
       </PropertyComment>
       <Kind Name="IdentifierToken"/>
     </Field>
+		<!-- OHDL BEGIN -->
+	  <Field Name="TriggerExpression" Type="ExpressionSyntax" Optional="true" />
     <Field Name="AccessorList" Type="AccessorListSyntax" Override="true" Optional="true"/>
-	<!-- OHDL BEGIN -->
     <Field Name="ExpressionBody" Type="ArrowExpressionClauseSyntax" Optional="true" />
     <Field Name="Body" Type="BlockSyntax" Optional="true" />
 	<!-- END -->
