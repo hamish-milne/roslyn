@@ -67,6 +67,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         {
             switch (modifier)
             {
+                // OHDL
+                case DeclarationModifiers.Reg:
+                    return SyntaxFacts.GetText(SyntaxKind.RegKeyword);
+                case DeclarationModifiers.Edge:
+                    return SyntaxFacts.GetText(SyntaxKind.EdgeKeyword);
+                case DeclarationModifiers.Task:
+                    return SyntaxFacts.GetText(SyntaxKind.TaskKeyword);
+                // END
                 case DeclarationModifiers.Abstract:
                     return SyntaxFacts.GetText(SyntaxKind.AbstractKeyword);
                 case DeclarationModifiers.Sealed:
@@ -114,6 +122,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         {
             switch (kind)
             {
+                // OHDL
+                case SyntaxKind.RegKeyword:
+                    return DeclarationModifiers.Reg;
+                case SyntaxKind.EdgeKeyword:
+                    return DeclarationModifiers.Edge;
+                case SyntaxKind.TaskKeyword:
+                    return DeclarationModifiers.Task;
+                // END
                 case SyntaxKind.AbstractKeyword:
                     return DeclarationModifiers.Abstract;
                 case SyntaxKind.AsyncKeyword:

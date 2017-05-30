@@ -220,7 +220,16 @@ namespace Microsoft.CodeAnalysis.CSharp
         OmittedArraySizeExpressionToken = 8493,
         EndOfDirectiveToken = 8494,
         EndOfDocumentationCommentToken = 8495,
-        EndOfFileToken = 8496, //NB: this is assumed to be the last textless token
+
+        // OHDL; we only have a small amount of space here..
+        BitKeyword = 8496,
+        RegKeyword = 8497,
+        EdgeKeyword = 8498,
+        TaskKeyword = 8499,
+        DdrKeyword = 8500,
+        OhdlOnKeyword = 8501,
+
+        EndOfFileToken = 8506, //NB: this is assumed to be the last textless token
 
         // tokens with text
         BadToken = 8507,
@@ -560,13 +569,9 @@ namespace Microsoft.CodeAnalysis.CSharp
         ThrowExpression = 9052,
 
         // ======== OHDL ========
-        
-        BitKeyword = 10200,
-        RegKeyword = 10201,
-        EdgeKeyword = 10202,
-        TaskKeyword = 10203,
 
         DeltaExpression = 10300, // A -> B
+        OhdlTemplateItem = 10400,
 
 
 

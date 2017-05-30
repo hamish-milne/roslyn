@@ -470,7 +470,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax
             switch (kind)
             {
                 case SyntaxKind.DotToken:
-                case SyntaxKind.MinusGreaterThanToken:
+                //case SyntaxKind.MinusGreaterThanToken:
                     return false;
                 default:
                     return SyntaxFacts.GetBinaryExpression(kind) != SyntaxKind.None;

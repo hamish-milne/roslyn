@@ -1243,7 +1243,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
 
                 open = CheckFeatureAvailability(open, MessageID.IDS_FeatureGenerics, forceWarning: true);
 
-                return SyntaxFactory.GenericName(identifierToken, SyntaxFactory.TypeArgumentList(open, list, close));
+                return SyntaxFactory.GenericName(identifierToken, SyntaxFactory.TypeArgumentList(open, list, default(SeparatedSyntaxList<ExpressionSyntax>), close));
             }
             finally
             {

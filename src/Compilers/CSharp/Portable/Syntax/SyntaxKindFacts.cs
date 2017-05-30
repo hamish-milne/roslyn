@@ -17,6 +17,11 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 yield return (SyntaxKind)i;
             }
+            // OHDL
+            for(int i = (int)SyntaxKind.BitKeyword; i <= (int)SyntaxKind.TaskKeyword; i++)
+            {
+                yield return (SyntaxKind)i;
+            }
         }
 
         public static IEnumerable<SyntaxKind> GetKeywordKinds()
@@ -164,7 +169,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         public static bool IsPunctuationOrKeyword(SyntaxKind kind)
         {
-            return kind >= SyntaxKind.TildeToken && kind <= SyntaxKind.EndOfFileToken;
+            return (kind >= SyntaxKind.TildeToken && kind <= SyntaxKind.EndOfFileToken) || (kind >= SyntaxKind.BitKeyword && kind <= SyntaxKind.TaskKeyword); // OHDL
         }
 
         internal static bool IsLiteral(SyntaxKind kind)
@@ -188,6 +193,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         public static bool IsAnyToken(SyntaxKind kind)
         {
             if (kind >= SyntaxKind.TildeToken && kind < SyntaxKind.EndOfLineTrivia) return true;
+            if (kind >= SyntaxKind.BitKeyword && kind <= SyntaxKind.TaskKeyword) return true; // OHDL
             switch (kind)
             {
                 case SyntaxKind.InterpolatedStringToken:
@@ -265,6 +271,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             switch (kind)
             {
+                case SyntaxKind.BitKeyword: // OHDL
                 case SyntaxKind.BoolKeyword:
                 case SyntaxKind.ByteKeyword:
                 case SyntaxKind.SByteKeyword:
@@ -573,6 +580,10 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             switch (token)
             {
+                // OHDL
+                case SyntaxKind.MinusGreaterThanToken:
+                    return SyntaxKind.DeltaExpression;
+                // END
                 case SyntaxKind.QuestionQuestionToken:
                     return SyntaxKind.CoalesceExpression;
                 case SyntaxKind.IsKeyword:
@@ -1602,6 +1613,17 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return "$\"";
                 case SyntaxKind.InterpolatedStringEndToken:
                     return "\"";
+
+                // OHDL
+                case SyntaxKind.BitKeyword:
+                    return "bit";
+                case SyntaxKind.EdgeKeyword:
+                    return "edge";
+                case SyntaxKind.RegKeyword:
+                    return "reg";
+                case SyntaxKind.TaskKeyword:
+                    return "task";
+
                 default:
                     return string.Empty;
             }

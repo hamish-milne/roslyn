@@ -1233,8 +1233,11 @@ tryAgain:
             Unsafe = 0x2000,
             Partial = 0x4000,
             Async = 0x8000,
-            Edge = 0x10000,
-            Task = 0x20000,
+            // OHDL
+            Reg = 0x10000,
+            Edge = 0x20000,
+            Task = 0x40000,
+            // END
         }
 
         private const SyntaxModifier AccessModifiers = SyntaxModifier.Public | SyntaxModifier.Internal | SyntaxModifier.Protected | SyntaxModifier.Private;
@@ -1244,6 +1247,8 @@ tryAgain:
             switch (token.Kind)
             {
                 // ======== OHDL ========
+                case SyntaxKind.RegKeyword:
+                    return SyntaxModifier.Reg;
                 case SyntaxKind.EdgeKeyword:
                     return SyntaxModifier.Edge;
                 case SyntaxKind.TaskKeyword:
@@ -2089,6 +2094,11 @@ tryAgain:
             switch (kind)
             {
                 case SyntaxKind.AbstractKeyword:
+                // OHDL:
+                 case SyntaxKind.BitKeyword:
+                 case SyntaxKind.RegKeyword:
+                 case SyntaxKind.EdgeKeyword:
+                 case SyntaxKind.TaskKeyword:
                 case SyntaxKind.BoolKeyword:
                 case SyntaxKind.ByteKeyword:
                 case SyntaxKind.CharKeyword:
@@ -2624,7 +2634,7 @@ parse_member_name:;
                 }
             }
 
-            var result = _syntaxFactory.TypeArgumentList(typeParameterList.LessThanToken, types.ToList(), typeParameterList.GreaterThanToken);
+            var result = _syntaxFactory.TypeArgumentList(typeParameterList.LessThanToken, types.ToList(), default(SeparatedSyntaxList<ExpressionSyntax>), typeParameterList.GreaterThanToken);
             _pool.Free(types);
             return result;
         }
@@ -4391,7 +4401,7 @@ tryAgain:
             Debug.Assert(this.CurrentToken.Kind == SyntaxKind.EventKeyword);
 
             var eventToken = this.EatToken();
-            var type = this.ParseType();
+            TypeSyntax type = null;// this.ParseType();
 
             if (IsFieldDeclaration(isEvent: true))
             {
@@ -4437,7 +4447,7 @@ tryAgain:
                     type,
                     explicitInterfaceOpt, //already has an appropriate error attached
                     missingIdentifier,
-                    null, missingAccessorList, null, null); // OHDL
+                    null, missingAccessorList, null, null, null); // OHDL
             }
 
             SyntaxToken identifier;
@@ -4459,10 +4469,10 @@ tryAgain:
             Debug.Assert(identifier != null);
             Debug.Assert(identifier.Kind == SyntaxKind.IdentifierToken);
 
-            if (identifier.IsMissing && !type.IsMissing)
+            /*if (identifier.IsMissing && !type.IsMissing)
             {
                 identifier = this.AddError(identifier, ErrorCode.ERR_IdentifierExpected);
-            }
+            }*/
 
             if (typeParameterList != null) // check to see if the user tried to create a generic event.
             {
@@ -4472,7 +4482,13 @@ tryAgain:
 
             // ======== OHDL ========
 
+            var openParen = this.EatToken(SyntaxKind.OpenParenToken, false);
 	        var triggerExpression = this.ParseExpression();
+            if (!openParen.IsMissing)
+            {
+                var closeParen = this.EatToken(SyntaxKind.CloseParenToken);
+                triggerExpression = _syntaxFactory.ParenthesizedExpression(openParen, triggerExpression, closeParen);
+            }
 
             //var accessorList = this.ParseAccessorList(isEvent: true);
             this.ParseBlockAndExpressionBodiesWithSemicolon(out var blockBody, out var expressionBody, out var semicolon);
@@ -4484,7 +4500,7 @@ tryAgain:
                 type,
                 explicitInterfaceOpt,
                 identifier,
-                triggerExpression, null, expressionBody, blockBody); // OHDL
+                triggerExpression, null, expressionBody, semicolon, blockBody); // OHDL
 
             return CheckForBlockAndExpressionBody(blockBody, expressionBody, decl);
             // ======================
@@ -4827,7 +4843,7 @@ tryAgain:
 
                             if (currentTokenKind == SyntaxKind.DotToken ||
                                 currentTokenKind == SyntaxKind.OpenParenToken ||
-                                currentTokenKind == SyntaxKind.MinusGreaterThanToken ||
+                                //currentTokenKind == SyntaxKind.MinusGreaterThanToken ||
                                 isNonEqualsBinaryToken)
                             {
                                 var isPossibleLocalFunctionToken =
@@ -5487,6 +5503,7 @@ tryAgain:
             {
                 return _syntaxFactory.TypeParameter(
                     default(SyntaxList<AttributeListSyntax>),
+                    default(TypeSyntax),
                     default(SyntaxToken),
                     this.AddError(CreateMissingIdentifierToken(), ErrorCode.ERR_IdentifierExpected));
             }
@@ -5517,7 +5534,7 @@ tryAgain:
                     }
                 }
 
-                return _syntaxFactory.TypeParameter(attrs, varianceToken, this.ParseIdentifierToken());
+                return _syntaxFactory.TypeParameter(attrs, this.ParseType(), varianceToken, this.ParseIdentifierToken());
             }
             finally
             {
@@ -5549,11 +5566,11 @@ tryAgain:
                 {
                     Debug.Assert(this.CurrentToken.Kind == SyntaxKind.LessThanToken);
                     SyntaxToken open;
-                    var types = _pool.AllocateSeparated<TypeSyntax>();
+                    var types = _pool.AllocateSeparated<ExpressionSyntax>();
                     SyntaxToken close;
                     this.ParseTypeArgumentList(out open, types, out close);
                     name = _syntaxFactory.GenericName(id.Identifier,
-                        _syntaxFactory.TypeArgumentList(open, types, close));
+                        _syntaxFactory.TypeArgumentList(open, default(SeparatedSyntaxList<TypeSyntax>), types, close));
                     _pool.Free(types);
                 }
             }
@@ -5680,7 +5697,7 @@ tryAgain:
         }
 
         // ParseInstantiation: Parses the generic argument/parameter parts of the name.
-        private void ParseTypeArgumentList(out SyntaxToken open, SeparatedSyntaxListBuilder<TypeSyntax> types, out SyntaxToken close)
+        private void ParseTypeArgumentList(out SyntaxToken open, SeparatedSyntaxListBuilder<ExpressionSyntax> types, out SyntaxToken close)
         {
             Debug.Assert(this.CurrentToken.Kind == SyntaxKind.LessThanToken);
             open = this.EatToken(SyntaxKind.LessThanToken);
@@ -5703,7 +5720,7 @@ tryAgain:
             }
 
             // first type
-            types.Add(this.ParseTypeArgument());
+            types.Add(this.ParseExpression());
 
             // remaining types & commas
             while (true)
@@ -5717,10 +5734,10 @@ tryAgain:
                     types.AddSeparator(this.EatToken(SyntaxKind.CommaToken));
                     types.Add(this.ParseTypeArgument());
                 }
-                else if (this.SkipBadTypeArgumentListTokens(types, SyntaxKind.CommaToken) == PostSkipAction.Abort)
+                /*else if (this.SkipBadTypeArgumentListTokens(types, SyntaxKind.CommaToken) == PostSkipAction.Abort)
                 {
                     break;
-                }
+                }*/
             }
 
             close = this.EatToken(SyntaxKind.GreaterThanToken);
@@ -6567,7 +6584,8 @@ tryAgain:
                         sawNonOmittedSize = true;
                         if (!expectSizes)
                         {
-                            size = this.AddError(size, isArrayCreation ? ErrorCode.ERR_InvalidArray : ErrorCode.ERR_ArraySizeInDeclaration);
+                            // OHDL: Arrays can always have sizes
+                            //size = this.AddError(size, isArrayCreation ? ErrorCode.ERR_InvalidArray : ErrorCode.ERR_ArraySizeInDeclaration);
                         }
 
                         list.Add(size);
@@ -9156,6 +9174,7 @@ tryAgain:
         enum Precedence : uint
         {
             Expression = 0, // Loosest possible precedence, used to accept all expressions
+            Delta, // OHDL: Delta expressions are lower than anything else (but cannot be 0)
             Assignment,
             Lambda = Assignment, // "The => operator has the same precedence as assignment (=) and is right-associative."
             Ternary,
@@ -9181,6 +9200,10 @@ tryAgain:
         {
             switch (op)
             {
+                // OHDL
+                case SyntaxKind.DeltaExpression:
+                    return Precedence.Delta;
+                // END
                 case SyntaxKind.SimpleAssignmentExpression:
                 case SyntaxKind.AddAssignmentExpression:
                 case SyntaxKind.SubtractAssignmentExpression:
@@ -9711,9 +9734,9 @@ tryAgain:
                         }
                         break;
 
-                    case SyntaxKind.MinusGreaterThanToken:
+                    /*case SyntaxKind.MinusGreaterThanToken:
                         expr = _syntaxFactory.MemberAccessExpression(SyntaxKind.PointerMemberAccessExpression, expr, this.EatToken(), this.ParseSimpleName(NameOptions.InExpression));
-                        break;
+                        break;*/
                     case SyntaxKind.DotToken:
                         expr = _syntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, expr, this.EatToken(), this.ParseSimpleName(NameOptions.InExpression));
                         break;

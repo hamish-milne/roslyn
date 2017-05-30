@@ -3,6 +3,7 @@
   <Include Path="..\..\..\build\rulesets\roslyn_buildrules.ruleset" Action="Default" />
   <Rules AnalyzerId="Roslyn.Diagnostic.Analyzers" RuleNamespace="Roslyn.Diagnostics.Analyzers">
     <Rule Id="RS0016" Action="None" />
+    <Rule Id="RS0017" Action="None" />
   </Rules>
   <Rules AnalyzerId="Roslyn.Diagnostics.Analyzers.CSharp" RuleNamespace="Roslyn.Diagnostics.Analyzers.CSharp">
     <Rule Id="RS0013" Action="Warning" />

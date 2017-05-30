@@ -32,8 +32,13 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         Async = 1 << 19,
 
-        All = (1 << 20) - 1, // all modifiers
-        Unset = 1 << 20, // used when a modifiers value hasn't yet been computed
+        // OHDL
+        Reg = 1 << 20,
+        Edge = 1 << 21,
+        Task = 1 << 22,
+
+        All = (1 << 22) - 1, // all modifiers
+        Unset = 1 << 23, // used when a modifiers value hasn't yet been computed
 
         AccessibilityMask = Private | Protected | Internal | ProtectedInternal | Public,
     }
