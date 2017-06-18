@@ -91,14 +91,9 @@
         <summary>SyntaxToken representing less than.</summary>
       </PropertyComment>
     </Field>
-    <Field Name="Arguments" Type="SeparatedSyntaxList&lt;TypeSyntax&gt;" Optional="true">
+    <Field Name="Arguments" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;" Optional="true">
       <PropertyComment>
         <summary>SeparatedSyntaxList of TypeSyntax node representing the type arguments.</summary>
-      </PropertyComment>
-    </Field>
-    <Field Name="OhdlArguments" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;" Optional="true">
-      <PropertyComment>
-        <summary>SeparatedSyntaxList of ExpressionSyntax representing OHDL template arguments.</summary>
       </PropertyComment>
     </Field>
     <Field Name="GreaterThanToken" Type="SyntaxToken">

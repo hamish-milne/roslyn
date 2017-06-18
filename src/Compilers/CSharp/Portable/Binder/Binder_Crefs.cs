@@ -830,13 +830,13 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             if (arity > 0)
             {
-                SeparatedSyntaxList<TypeSyntax> typeArgumentSyntaxes = typeArgumentListSyntax.Arguments;
+                var typeArgumentSyntaxes = typeArgumentListSyntax.Arguments;
                 TypeSymbol[] typeArgumentSymbols = new TypeSymbol[arity];
 
                 DiagnosticBag unusedDiagnostics = DiagnosticBag.GetInstance();
                 for (int i = 0; i < arity; i++)
                 {
-                    TypeSyntax typeArgumentSyntax = typeArgumentSyntaxes[i];
+                    var typeArgumentSyntax = typeArgumentSyntaxes[i];
 
                     typeArgumentSymbols[i] = BindType(typeArgumentSyntax, unusedDiagnostics);
 

@@ -824,7 +824,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             var plainName = node.Identifier.ValueText;
 
-            SeparatedSyntaxList<TypeSyntax> typeArguments = node.TypeArgumentList.Arguments;
+	        SeparatedSyntaxList<TypeSyntax> typeArguments = default(SeparatedSyntaxList<TypeSyntax>); //node.TypeArgumentList.Arguments;
 
             bool isUnboundTypeExpr = node.IsUnboundGenericName;
             LookupOptions options = GetSimpleNameLookupOptions(node, isVerbatimIdentifier: false);

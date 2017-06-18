@@ -111,7 +111,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 _seenGeneric = true;
 
-                SeparatedSyntaxList<TypeSyntax> typeArguments = node.TypeArgumentList.Arguments;
+                var typeArguments = node.TypeArgumentList.Arguments;
                 if (node.IsUnboundGenericName)
                 {
                     if (_allowedMap == null)

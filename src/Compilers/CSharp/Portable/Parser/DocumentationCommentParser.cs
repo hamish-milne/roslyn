@@ -1210,7 +1210,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
 
             var open = EatToken();
 
-            var list = _pool.AllocateSeparated<TypeSyntax>();
+            var list = _pool.AllocateSeparated<ExpressionSyntax>();
             try
             {
                 while (true)
@@ -1243,7 +1243,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
 
                 open = CheckFeatureAvailability(open, MessageID.IDS_FeatureGenerics, forceWarning: true);
 
-                return SyntaxFactory.GenericName(identifierToken, SyntaxFactory.TypeArgumentList(open, list, default(SeparatedSyntaxList<ExpressionSyntax>), close));
+                return SyntaxFactory.GenericName(identifierToken, SyntaxFactory.TypeArgumentList(open, list, close));
             }
             finally
             {

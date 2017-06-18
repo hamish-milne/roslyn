@@ -2603,7 +2603,7 @@ parse_member_name:;
 
         private TypeArgumentListSyntax TypeArgumentFromTypeParameters(TypeParameterListSyntax typeParameterList)
         {
-            var types = _pool.AllocateSeparated<TypeSyntax>();
+            var types = _pool.AllocateSeparated<ExpressionSyntax>();
             foreach (var p in typeParameterList.Parameters.GetWithSeparators())
             {
                 switch ((SyntaxKind)p.RawKind)
@@ -2634,7 +2634,7 @@ parse_member_name:;
                 }
             }
 
-            var result = _syntaxFactory.TypeArgumentList(typeParameterList.LessThanToken, types.ToList(), default(SeparatedSyntaxList<ExpressionSyntax>), typeParameterList.GreaterThanToken);
+            var result = _syntaxFactory.TypeArgumentList(typeParameterList.LessThanToken, types.ToList(), typeParameterList.GreaterThanToken);
             _pool.Free(types);
             return result;
         }
@@ -5570,7 +5570,7 @@ tryAgain:
                     SyntaxToken close;
                     this.ParseTypeArgumentList(out open, types, out close);
                     name = _syntaxFactory.GenericName(id.Identifier,
-                        _syntaxFactory.TypeArgumentList(open, default(SeparatedSyntaxList<TypeSyntax>), types, close));
+                        _syntaxFactory.TypeArgumentList(open, types, close));
                     _pool.Free(types);
                 }
             }
@@ -5720,7 +5720,7 @@ tryAgain:
             }
 
             // first type
-            types.Add(this.ParseExpression());
+            types.Add(this.ParseTypeArgument());
 
             // remaining types & commas
             while (true)
@@ -5729,7 +5729,7 @@ tryAgain:
                 {
                     break;
                 }
-                else if (this.CurrentToken.Kind == SyntaxKind.CommaToken || this.IsPossibleType())
+                else if (this.CurrentToken.Kind == SyntaxKind.CommaToken || this.IsPossibleType() || this.CurrentToken.Kind == SyntaxKind.NumericLiteralToken) // OHDL: We allow all expressions for generic arguments
                 {
                     types.AddSeparator(this.EatToken(SyntaxKind.CommaToken));
                     types.Add(this.ParseTypeArgument());
@@ -5754,7 +5754,7 @@ tryAgain:
         }
 
         // Parses the individual generic parameter/arguments in a name.
-        private TypeSyntax ParseTypeArgument()
+        private ExpressionSyntax ParseTypeArgument()
         {
             if (this.IsPossibleTypeParameterConstraintClauseStart())
             {
@@ -5789,7 +5789,16 @@ tryAgain:
                     varianceToken = this.AddError(varianceToken, ErrorCode.ERR_IllegalVarianceSyntax);
                 }
 
-                var result = this.ParseType();
+	            ExpressionSyntax result;
+	            if (this.CurrentToken.Kind == SyntaxKind.NumericLiteralToken)
+	            {
+		            result = _syntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, this.CurrentToken);
+		            this.EatToken();
+	            }
+	            else
+	            {
+		            result = this.ParseType();
+	            }
 
                 // Consider the case where someone supplies an invalid type argument
                 // Such as Action<0> or Action<static>.  In this case we generate a missing 

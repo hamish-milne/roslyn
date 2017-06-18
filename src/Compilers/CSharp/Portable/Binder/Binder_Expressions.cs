@@ -1059,9 +1059,9 @@ namespace Microsoft.CodeAnalysis.CSharp
             int arity = node.Arity;
             bool hasTypeArguments = arity > 0;
 
-            SeparatedSyntaxList<TypeSyntax> typeArgumentList = node.Kind() == SyntaxKind.GenericName
+            SeparatedSyntaxList<TypeSyntax> typeArgumentList = /*node.Kind() == SyntaxKind.GenericName
                 ? ((GenericNameSyntax)node).TypeArgumentList.Arguments
-                : default(SeparatedSyntaxList<TypeSyntax>);
+                :*/ default(SeparatedSyntaxList<TypeSyntax>);
 
             Debug.Assert(arity == typeArgumentList.Count);
 
@@ -4861,8 +4861,8 @@ namespace Microsoft.CodeAnalysis.CSharp
         {
             // We have an expression of the form "dynExpr.Name" or "dynExpr.Name<X>"
 
-            SeparatedSyntaxList<TypeSyntax> typeArgumentsSyntax = right.Kind() == SyntaxKind.GenericName ?
-                ((GenericNameSyntax)right).TypeArgumentList.Arguments :
+            SeparatedSyntaxList<TypeSyntax> typeArgumentsSyntax = /*right.Kind() == SyntaxKind.GenericName ?
+                ((GenericNameSyntax)right).TypeArgumentList.Arguments :*/
                 default(SeparatedSyntaxList<TypeSyntax>);
             bool rightHasTypeArguments = typeArgumentsSyntax.Count > 0;
             ImmutableArray<TypeSymbol> typeArguments = rightHasTypeArguments ?
@@ -4961,7 +4961,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     options |= LookupOptions.MustBeInvocableIfMember;
                 }
 
-                var typeArgumentsSyntax = right.Kind() == SyntaxKind.GenericName ? ((GenericNameSyntax)right).TypeArgumentList.Arguments : default(SeparatedSyntaxList<TypeSyntax>);
+                var typeArgumentsSyntax = /*right.Kind() == SyntaxKind.GenericName ? ((GenericNameSyntax)right).TypeArgumentList.Arguments :*/ default(SeparatedSyntaxList<TypeSyntax>);
                 bool rightHasTypeArguments = typeArgumentsSyntax.Count > 0;
                 var typeArguments = rightHasTypeArguments ? BindTypeArguments(typeArgumentsSyntax, diagnostics) : default(ImmutableArray<TypeSymbol>);
 
