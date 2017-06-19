@@ -41,9 +41,19 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Binding.cs" />
+    <Compile Include="ClassBinding.cs" />
+    <Compile Include="ExpressionBinding.cs" />
+    <Compile Include="GenericParameterBinding.cs" />
     <Compile Include="HardwareModel.cs" />
+    <Compile Include="MemberBinding.cs" />
+    <Compile Include="MetaType.cs" />
+    <Compile Include="NamespaceBinding.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StatementBinding.cs" />
+    <Compile Include="TypeBinding.cs" />
+    <Compile Include="TypeName.cs" />
     <Compile Include="Verilog.cs" />
   </ItemGroup>
   <ItemGroup>
