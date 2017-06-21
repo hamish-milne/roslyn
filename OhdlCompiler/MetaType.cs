@@ -65,7 +65,7 @@ namespace OhdlCompiler
 			throw new NotImplementedException();
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
 			// None
 		}

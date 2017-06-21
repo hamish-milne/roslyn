@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace OhdlCompiler
@@ -31,14 +32,20 @@ namespace OhdlCompiler
 						throw new Exception("Jagged arrays not supported");
 					// TODO: Multi-D arrays
 					return GetTypeBinding(array.ElementType, usingState, context)?
-						.GetArrayType(ExpressionBinding.Create(array.RankSpecifiers[0].Sizes[0], context));
+						.GetArrayType(array.RankSpecifiers[0].Sizes.Select(e => ExpressionBinding.Create(e, context)));
 				default:
 					throw new Exception($"Invalid syntax {syntax}");
 			}
 		}
 	}
 
-    abstract class TypeBinding : Binding
+	public struct FlatValue
+	{
+		public ImmutableArray<string> Name;
+		public ImmutableArray<uint> Sizes;
+	}
+
+    public abstract class TypeBinding : Binding
 	{
 		protected TypeBinding(string name, Binding parent) : base(name, parent)
 		{
@@ -48,30 +55,31 @@ namespace OhdlCompiler
 
 		//public abstract HardwareExpression ToHardware(HardwareBinaryOp binaryOp, TypeBinding operand);
 
-		public TypeBinding ResolveType(ClassBinding classInstance) => this;
-
-		public ArrayTypeBinding GetArrayType(ExpressionBinding size)
+		public ArrayTypeBinding GetArrayType(IEnumerable<ExpressionBinding> sizes)
 		{
 			// TODO: Cache these
-			return new ArrayTypeBinding(this, size, null); // TODO: what is the parent?
+			return new ArrayTypeBinding(this, sizes, null); // TODO: what is the parent?
 		}
+
+        public virtual uint? PrimitiveSize => null;
 	}
 
-	class ArrayTypeBinding : TypeBinding
+	public class ArrayTypeBinding : TypeBinding
 	{
 		public TypeBinding ElementType { get; }
-		public ExpressionBinding Size { get; }
-		public uint? EvaluatedSize { get; private set; }
+		public ImmutableArray<ExpressionBinding> Sizes { get; }
+		private uint? primitiveSize;
+		public override uint? PrimitiveSize => primitiveSize;
 
 		public override TypeBinding GetElementType(TypeBinding indexer)
 		{
 			return ElementType;
 		}
 
-		public ArrayTypeBinding(TypeBinding element, ExpressionBinding size, Binding parent) : base(null, parent)
+		public ArrayTypeBinding(TypeBinding element, IEnumerable<ExpressionBinding> sizes, Binding parent) : base(null, parent)
 		{
 			ElementType = element;
-			Size = size;
+			Sizes = ImmutableArray.Create(sizes.ToArray());
 		}
 
 		public override void ResolveTypes(UsingState usingState)
@@ -95,10 +103,10 @@ namespace OhdlCompiler
 			throw new NotImplementedException();
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
-			if (!EvaluatedSize.HasValue)
-				EvaluatedSize = Convert.ToUInt32(Size.Evaluate());
+			if (primitiveSize == null)
+				primitiveSize = Sizes.Select(e => Convert.ToUInt32(e.Evaluate())).Aggregate((a,b) => a * b);
 		}
 	}
 }

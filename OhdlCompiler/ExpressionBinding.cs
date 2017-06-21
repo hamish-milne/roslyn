@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace OhdlCompiler
 {
-	abstract class ExpressionBinding : Binding
+	public abstract class ExpressionBinding : Binding
 	{
 		protected ExpressionBinding(string name, Binding parent) : base(name, parent)
 		{
@@ -56,15 +56,17 @@ namespace OhdlCompiler
 			// None
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
-			ExpressionType?.ResolveArraySizes();
+			ExpressionType?.ResolveInterface();
 		}
 
 		public virtual object Evaluate()
 		{
 			throw new Exception($"An expression {this} cannot be evaluated at compile-time");
 		}
+
+		public virtual HardwareExpression ToHardware() => null;
 	}
 
 
@@ -93,6 +95,11 @@ namespace OhdlCompiler
 		public override object Evaluate()
 		{
 			return Convert.ToBoolean(Condition.Evaluate()) ? IfTrue.Evaluate() : IfFalse.Evaluate();
+		}
+
+		public override HardwareExpression ToHardware()
+		{
+			return new HardwareBinary();
 		}
 	}
 

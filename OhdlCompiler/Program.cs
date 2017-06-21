@@ -63,7 +63,7 @@ class Main : Counter<8> { }
 		{
 			rootContext.ResolveTypes(default(UsingState));
             rootContext.ResolveExpressions(default(UsingState));
-            rootContext.ResolveArraySizes();
+            rootContext.ResolveInterface();
 		}
 
 

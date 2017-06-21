@@ -69,18 +69,16 @@ namespace OhdlCompiler
 				c.ResolveExpressions(usingState);
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
 			foreach (var c in children.Values)
-				c.ResolveArraySizes();
+				c.ResolveInterface();
 		}
 
 		public NamespaceBinding GetChildNamespace(TypeName name)
 		{
 			if (name == null) return this;
-			var child = GetChild(name.Name);
-			if (child == null)
-				child = new NamespaceBinding(name.Name, this);
+			var child = GetChild(name.Name) ?? new NamespaceBinding(name.Name, this);
 			var ns = child as NamespaceBinding;
 			if (ns == null)
 				throw new Exception($"Type {name.Name} is already a namespace name");
@@ -127,7 +125,7 @@ namespace OhdlCompiler
 						newContext.Load(ns.Members, ns.Usings, state);
 						break;
 					case TypeDeclarationSyntax type:
-						new ClassBinding(type, state, this, default(ImmutableArray<object>), this);
+						UserTypeBinding.Create(type, state, this, default(ImmutableArray<object>), this);
 						break;
 					default:
 						throw new Exception($"Invalid syntax {m}");

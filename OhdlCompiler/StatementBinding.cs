@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace OhdlCompiler
@@ -28,6 +30,8 @@ namespace OhdlCompiler
 		{
 			// None
 		}
+
+		public abstract HardwareStatement ToHardware(List<HardwareRegister> variables);
 	}
 
 	class VariableBinding : ExpressionBinding
@@ -55,6 +59,21 @@ namespace OhdlCompiler
 			else
 				Type = syntax.Type.GetTypeBinding(usingState, Parent);
 		}
+
+		// Cache hardware objects to allow changes to be made
+		private HardwareRegister hwreg;
+
+		public override HardwareExpression ToHardware()
+		{
+			if (hwreg != null) return hwreg;
+			if (!ExpressionType.PrimitiveSize.HasValue)
+				throw new Exception("A local variable must be a primitive/struct");
+			return hwreg = new HardwareRegister
+			{
+				Name = ImmutableArray.Create(Name),
+				Size = ExpressionType.PrimitiveSize,
+			};
+		}
 	}
 
 	class ExpressionStatementBinding : StatementBinding
@@ -81,9 +100,17 @@ namespace OhdlCompiler
 			// None
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
-			Expression.ResolveArraySizes();
+			Expression.ResolveInterface();
+		}
+
+		public override HardwareStatement ToHardware(List<HardwareRegister> variables)
+		{
+			return new HardwareStatementSingle
+			{
+				Expression = Expression.ToHardware()
+			};
 		}
 	}
 
@@ -124,10 +151,17 @@ namespace OhdlCompiler
 				Variables.Add(v);
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
 			foreach (var v in Variables)
-				v.ResolveArraySizes();
+				v.ResolveInterface();
+		}
+
+		public override HardwareStatement ToHardware(List<HardwareRegister> variables)
+		{
+			foreach(var v in Variables)
+				variables.Add((HardwareRegister)v.ToHardware());
+			return null;
 		}
 	}
 
@@ -167,10 +201,10 @@ namespace OhdlCompiler
 				s.ResolveTypes(usingState);
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
 			foreach (var s in Statements)
-				s.ResolveArraySizes();
+				s.ResolveInterface();
 		}
 
 		public override Binding GetChild(string name)
@@ -204,9 +238,14 @@ namespace OhdlCompiler
 			// None
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
-			Expression.ResolveArraySizes();
+			Expression.ResolveInterface();
+		}
+
+		public override HardwareStatement ToHardware(List<HardwareRegister> variables)
+		{
+			return new HardwareStatementSingle {Expression = Expression.ToHardware()};
 		}
 	}
 }

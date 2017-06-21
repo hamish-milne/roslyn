@@ -11,14 +11,14 @@ namespace OhdlCompiler
 	    public List<HardwareModule> Modules = new List<HardwareModule>();
     }
 
-	abstract class HardwareExpression
+	public abstract class HardwareExpression
 	{
 		public abstract void Emit(StringBuilder sb, ref int indent);
 
 		public virtual bool IsStatement => false;
 	}
 
-	class HardwareNamedValue : HardwareExpression
+	public class HardwareNamedValue : HardwareExpression
 	{
 		public ImmutableArray<string> Name { get; set; }
 
@@ -29,7 +29,7 @@ namespace OhdlCompiler
 		}
 	}
 
-    abstract class HardwareMember : HardwareNamedValue
+    public abstract class HardwareMember : HardwareNamedValue
 	{
 		public bool IsPublic { get; set; }
 
@@ -43,18 +43,39 @@ namespace OhdlCompiler
 		}
 	}
 
+	abstract class HardwareSizedMember : HardwareMember
+	{
+		public ImmutableArray<uint> Size { get; set; }
+
+		public override void EmitDeclaration(StringBuilder sb, ref int indent)
+		{
+			foreach (var s in Size)
+				sb.Append("[").Append(s).Append(":0] ");
+        }
+	}
+
     class HardwareParameter : HardwareNamedValue
 	{
         public bool IsOut { get; set; }
-        public int Size { get; set; }
+        public ImmutableArray<uint> Size { get; set; }
 
 		public virtual void EmitDeclaration(StringBuilder sb, ref int indent)
 		{
 			sb.Append('\t', indent).Append(IsOut ? "output" : "input").Append(' ');
-			if (Size != 1)
-				sb.Append('[').Append(Size).Append(":0] ");
+			foreach (var s in Size)
+				sb.Append("[").Append(s).Append(":0] ");
             Emit(sb, ref indent);
 			sb.Append(";\n");
+		}
+	}
+
+	class HardwareConstant : HardwareExpression
+	{
+		public long Value { get; set; }
+
+		public override void Emit(StringBuilder sb, ref int indent)
+		{
+			sb.Append(Value);
 		}
 	}
 
@@ -109,6 +130,7 @@ namespace OhdlCompiler
 	class HardwareMethod : HardwareMember
 	{
         public List<HardwareParameter> Parameters { get; } = new List<HardwareParameter>();
+		public List<HardwareRegister> Variables { get; } = new List<HardwareRegister>();
         public HardwareBlock Block { get; set; }
 
 		public override void EmitDeclaration(StringBuilder sb, ref int indent)
@@ -139,30 +161,23 @@ namespace OhdlCompiler
 		}
 	}
 
-	class HardwareInput : HardwareMember
+	class HardwareInput : HardwareSizedMember
 	{
-        public int Size { get; set; }
-
 		public override void EmitDeclaration(StringBuilder sb, ref int indent)
 		{
-			base.EmitDeclaration(sb, ref indent);
-			sb.Append("input ");
-			if (Size != 1)
-				sb.Append('[').Append(Size).Append(":0] ");
-			sb.Append(";\n");
+			sb.Append('\t', indent).Append("input ");
+            base.EmitDeclaration(sb, ref indent);
+            sb.Append(";\n");
 		}
 	}
 
-	class HardwareRegister : HardwareMember
+	class HardwareRegister : HardwareSizedMember
 	{
-        public int Size { get; set; }
 
 		public override void EmitDeclaration(StringBuilder sb, ref int indent)
 		{
+			sb.Append('\t', indent).Append("reg ");
             base.EmitDeclaration(sb, ref indent);
-			sb.Append("reg ");
-            if(Size != 1)
-			    sb.Append("[").Append(Size).Append(":0] ");
             Emit(sb, ref indent);
 			sb.Append(';');
 		}
@@ -170,15 +185,14 @@ namespace OhdlCompiler
 
 	
 
-	class HardwareWire : HardwareMember
+	class HardwareWire : HardwareSizedMember
 	{
-		public int Size { get; set; }
         public HardwareExpression Expression { get; set; }
 
 		public override void EmitDeclaration(StringBuilder sb, ref int indent)
 		{
+			sb.Append('\t', indent).Append("wire ");
 			base.EmitDeclaration(sb, ref indent);
-            sb.Append("wire [").Append(Size).Append(":0] ");
             Emit(sb, ref indent);
 			sb.Append(";\n").Append("assign ");
             Emit(sb, ref indent);
@@ -278,6 +292,24 @@ namespace OhdlCompiler
 		}
 	}
 
+	class HardwareTernary : HardwareExpression
+	{
+		public HardwareExpression Condition { get; set; }
+		public HardwareExpression WhenTrue { get; set; }
+		public HardwareExpression WhenFalse { get; set; }
+
+		public override void Emit(StringBuilder sb, ref int indent)
+		{
+			sb.Append('(');
+			Condition.Emit(sb, ref indent);
+			sb.Append(" ? ");
+			WhenTrue.Emit(sb, ref indent);
+			sb.Append(" : ");
+			WhenFalse.Emit(sb, ref indent);
+			sb.Append(')');
+		}
+	}
+
 	class HardwareCall : HardwareExpression
 	{
 		public HardwareMethod Method { get; set; }
@@ -305,11 +337,11 @@ namespace OhdlCompiler
 		}
 	}
 
-	class HardwareStatementSingle
+	class HardwareStatementSingle : HardwareStatement
 	{
         public HardwareExpression Expression { get; set; }
 
-		public virtual void Emit(StringBuilder sb, ref int indent)
+		public override void Emit(StringBuilder sb, ref int indent)
 		{
             if(!Expression.IsStatement)
                 throw new Exception($"Expression {Expression} is not a valid statement");

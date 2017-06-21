@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace OhdlCompiler
@@ -17,15 +18,16 @@ namespace OhdlCompiler
 		Enum,
 	}
 
-    class ClassBinding : TypeBinding, ITypeProvider
+    abstract class UserTypeBinding : TypeBinding, ITypeProvider
 	{
-		private readonly UsingState usingState;
-		private readonly TypeDeclarationSyntax syntax;
-		private readonly Binding genericContext;
+		protected readonly UsingState usingState;
+		protected readonly TypeDeclarationSyntax syntax;
+		protected readonly Binding genericContext;
 
 		private readonly Dictionary<string, Binding> children
 			= new Dictionary<string, Binding>();
-		public ClassBinding BaseClass { get; private set; }
+		protected readonly List<MemberBinding> members = new List<MemberBinding>();
+		public UserTypeBinding BaseClass { get; private set; }
 
 		public virtual ITypeProvider GetType(TypeName name, UsingState state, bool traverseUp, ImmutableArray<object> genericArgs, Binding context)
 		{
@@ -66,7 +68,7 @@ namespace OhdlCompiler
 		{
 			// TODO: Cache these
 			if (OpenGenericArgs == 0) throw new Exception("Attempted to add generic args to a concrete generic instance");
-			return new ClassBinding(syntax, usingState, Parent, genericArgs, genericDefinedIn);
+			return Create(syntax, usingState, Parent, genericArgs, genericDefinedIn);
 		}
 
 		protected override void AddChild(Binding child)
@@ -81,7 +83,9 @@ namespace OhdlCompiler
 				if (children.ContainsKey(child.Name))
 					throw new Exception($"Type {Name} already contains member {child.Name}");
 				children[child.Name] = child;
-			}
+				if (child is MemberBinding m)
+					members.Add(m);
+            }
 		}
 
 		public override Binding GetChild(string name)
@@ -125,74 +129,23 @@ namespace OhdlCompiler
 				m.ResolveExpressions(usingState);
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
 			if (arraySizesResolved) return;
 			arraySizesResolved = true;
 
-			BaseClass?.ResolveArraySizes();
+			BaseClass?.ResolveInterface();
 			foreach (var m in children.Values)
-				m.ResolveArraySizes();
-		}
-
-		protected readonly List<EventBinding> Events = new List<EventBinding>();
-
-		public ClassType ClassType { get; }
-		public MethodGroupBinding Constructor { get; }
-
-		public ClassBinding(TypeDeclarationSyntax syntax, UsingState usingState, Binding parent, ImmutableArray<object> genericArgs, Binding genericContext) : base(genericArgs.IsDefault ?  syntax.Identifier.Text : null, parent)
-		{
-			this.syntax = syntax;
-			this.genericContext = genericContext;
-
-			if (!genericArgs.IsDefault && genericArgs.Length != syntax.TypeParameterList?.Parameters.Count)
-				throw new Exception($"Incorrect number of generic arguments; we need {syntax.TypeParameterList?.Parameters.Count}");
-
-			// Only add members if we are non-generic or a closed generic
-			if (!genericArgs.IsDefault || syntax.TypeParameterList == null)
-			{
-				if (syntax.TypeParameterList != null)
-				{
-					var genericParams = ImmutableArray.Create(syntax.TypeParameterList.Parameters
-						.Select((p, i) => new GenericParameterBinding(p, this, genericArgs[i], genericContext)).ToArray());
-				}
-				// GenericArgs = genericArgs;
-				Constructor = new MethodGroupBinding(".ctor", this);
-				this.usingState = usingState;
-				ClassType = GetClassType(syntax.Keyword);
-				this.syntax = syntax;
-				foreach (var m in syntax.Members)
-					AddMember(m);
-			}
-			else
-			{
-				OpenGenericArgs = syntax.TypeParameterList.Parameters.Count;
-			}
-		}
-
-		private static ClassType GetClassType(SyntaxToken keyword)
-		{
-			switch (keyword.Text)
-			{
-				case "class":
-					return ClassType.Class;
-				case "struct":
-					return ClassType.Struct;
-				case "interface":
-					return ClassType.Interface;
-				case "enum":
-					return ClassType.Enum;
-				default:
-					throw new Exception($"Invalid type declaration keyword {keyword}");
-			}
+				m.ResolveInterface();
 		}
 
 		protected void AddMember(MemberDeclarationSyntax member)
 		{
-			switch (member)
+			// ReSharper disable ObjectCreationAsStatement
+            switch (member)
 			{
 				case TypeDeclarationSyntax type:
-					new ClassBinding(type, usingState, this, default(ImmutableArray<object>), this);
+					Create(type, usingState, this, default(ImmutableArray<object>), this);
 					break;
 				case FieldDeclarationSyntax field:
 					for (int i = 0, l = field.Declaration.Variables.Count; i < l; i++)
@@ -216,12 +169,138 @@ namespace OhdlCompiler
 				default:
 					throw new Exception($"Invalid syntax {member}");
 			}
+			// ReSharper restore ObjectCreationAsStatement
+        }
+
+        protected readonly List<EventBinding> Events = new List<EventBinding>();
+
+		public abstract ClassType ClassType { get; }
+		public MethodGroupBinding Constructor { get; }
+
+		protected UserTypeBinding(TypeDeclarationSyntax syntax, UsingState usingState, Binding parent, ImmutableArray<object> genericArgs, Binding genericContext) :
+			base(genericArgs.IsDefault ?  syntax.Identifier.Text : null, parent)
+		{
+			this.syntax = syntax;
+			this.genericContext = genericContext;
+
+			if (!genericArgs.IsDefault && genericArgs.Length != syntax.TypeParameterList?.Parameters.Count)
+				throw new Exception($"Incorrect number of generic arguments; we need {syntax.TypeParameterList?.Parameters.Count}");
+
+			// Only add members if we are non-generic or a closed generic
+			if (!genericArgs.IsDefault || syntax.TypeParameterList == null)
+			{
+				if (syntax.TypeParameterList != null)
+				{
+					var genericParams = ImmutableArray.Create(syntax.TypeParameterList.Parameters
+						.Select((p, i) => new GenericParameterBinding(p, this, genericArgs[i], genericContext)).ToArray());
+				}
+				// GenericArgs = genericArgs;
+				Constructor = new MethodGroupBinding(".ctor", this);
+				this.usingState = usingState;
+				this.syntax = syntax;
+				foreach (var m in syntax.Members)
+					AddMember(m);
+			}
+			else
+			{
+				OpenGenericArgs = syntax.TypeParameterList.Parameters.Count;
+			}
 		}
 
 		public override TypeBinding GetElementType(TypeBinding indexer)
 		{
 			// TODO: Use indexer definition
 			throw new NotImplementedException();
+		}
+
+		/*public override IEnumerable<FlatValue> Flatten()
+		{
+			if (ClassType == ClassType.Struct)
+				yield return new FlatValue
+				{
+					Name = ImmutableArray<string>.Empty,
+					Sizes = ImmutableArray.Create((uint) structFieldDecl.Sum(m => m.ExpressionType.PrimitiveSize.Value))
+				};
+			else if(ClassType == ClassType.Class)
+				foreach (var m in structFieldDecl)
+				{
+					foreach (var v in m.ExpressionType.Flatten())
+						yield return new FlatValue { Name = ImmutableArray.Create(m.Name).AddRange(v.Name), Sizes = v.Sizes };
+                }
+		}*/
+
+		public static UserTypeBinding Create(TypeDeclarationSyntax syntax, UsingState state, Binding parent,
+			ImmutableArray<object> genericArgs, Binding genericContext)
+		{
+			switch (syntax)
+			{
+                case ClassDeclarationSyntax c:
+	                return new ClassBinding(c, state, parent, genericArgs, genericContext);
+                case StructDeclarationSyntax s:
+					return new StructBinding(s, state, parent, genericArgs, genericContext);
+                default:
+					throw new NotSupportedException();
+			}
+		}
+	}
+
+	class ClassBinding : UserTypeBinding
+	{
+		public override ClassType ClassType => ClassType.Class;
+
+		public ImmutableArray<MemberBinding> Interface { get; private set; }
+
+		public override void ResolveInterface()
+		{
+			base.ResolveInterface();
+			Interface = ImmutableArray.Create(members.Where(m => m.IsReg && m.Access != MemberAccess.Private).ToArray());
+		}
+
+		public HardwareModule ToHardware()
+		{
+			return new HardwareModule
+			{
+				Name = FullyQualifiedName,
+
+			};
+		}
+
+		public ClassBinding(ClassDeclarationSyntax syntax, UsingState usingState,
+			Binding parent, ImmutableArray<object> genericArgs, Binding genericContext)
+			: base(syntax, usingState, parent, genericArgs, genericContext)
+		{
+		}
+	}
+
+	class StructBinding : UserTypeBinding
+	{
+		public override ClassType ClassType => ClassType.Struct;
+
+		private uint? primitiveSize;
+		public override uint? PrimitiveSize => primitiveSize;
+
+		public override void ResolveInterface()
+		{
+			base.ResolveInterface();
+			primitiveSize = 0;
+			foreach (var m in members)
+			{
+				if (!m.IsReg) continue;
+				if(m.ExpressionType == null)
+					throw new Exception($"Untyped member {m}");
+				if (m.ExpressionType.PrimitiveSize.HasValue)
+				{
+					m.Offset = primitiveSize;
+					primitiveSize += m.ExpressionType.PrimitiveSize;
+				} else
+					throw new Exception("Structs cannot contain class-type members");
+			}
+		}
+
+		public StructBinding(StructDeclarationSyntax syntax, UsingState usingState,
+			Binding parent, ImmutableArray<object> genericArgs, Binding genericContext)
+			: base(syntax, usingState, parent, genericArgs, genericContext)
+		{
 		}
 	}
 }

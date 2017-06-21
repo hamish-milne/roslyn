@@ -2,51 +2,112 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace OhdlCompiler
 {
-	abstract class MemberBinding : ExpressionBinding
+	public enum MemberAccess
 	{
-		protected MemberBinding(string name, Binding parent) : base(name, parent)
+		Private,
+		Protected,
+		Internal,
+		ProtectedInternal,
+		Public
+	}
+
+	public abstract class MemberBinding : ExpressionBinding
+	{
+		protected MemberBinding(SyntaxTokenList modifiers, string name, Binding parent) : base(name, parent)
 		{
+			var set = new HashSet<SyntaxKind>(modifiers.Select(m => m.Kind()));
+			if(set.Contains(SyntaxKind.PublicKeyword))
+				Access = MemberAccess.Public;
+			else if(set.Contains(SyntaxKind.ProtectedKeyword) && set.Contains(SyntaxKind.InternalKeyword))
+				Access = MemberAccess.ProtectedInternal;
+			else if(set.Contains(SyntaxKind.ProtectedKeyword))
+				Access = MemberAccess.Protected;
+			else if(set.Contains(SyntaxKind.InternalKeyword))
+				Access = MemberAccess.Internal;
+			else
+				Access = MemberAccess.Private;
+			// TODO: Check for multiple/invalid modifiers
 		}
+
+		public uint? Offset { get; set; }
 
 		public virtual ImmutableArray<string>? ExplicitInterface => null;
 
+		public virtual MemberAccess Access { get; }
+
+		public virtual IEnumerable<HardwareMember> ToHardwareDeclaration() => null;
+
+		public virtual bool IsReg => false;
 	}
 
 
 	class FieldBinding : MemberBinding
 	{
+		public override bool IsReg { get; }
+
 		private readonly FieldDeclarationSyntax syntax;
 
-		public FieldBinding(FieldDeclarationSyntax syntax, int index, Binding parent) : base(syntax.Declaration.Variables[index].Identifier.Text, parent)
+		public FieldBinding(FieldDeclarationSyntax syntax, int index, UserTypeBinding parent) : base(syntax.Modifiers, syntax.Declaration.Variables[index].Identifier.Text, parent)
 		{
 			this.syntax = syntax;
+			var isReg = syntax.Modifiers.Any(m => m.Kind() == SyntaxKind.RegKeyword);
+			IsReg = isReg;
+			if(isReg && parent.ClassType != ClassType.Class)
+				throw new Exception("Only classes can have 'reg' members");
 		}
 
 		public override void ResolveTypes(UsingState usingState)
 		{
 			ExpressionType = syntax.Declaration.Type.GetTypeBinding(usingState, this);
 		}
+
+		private HardwareRegister hwreg;
+		public override HardwareExpression ToHardware()
+		{
+			if (ExpressionType.PrimitiveSize.HasValue)
+			{
+				return hwreg ?? (hwreg = new HardwareRegister
+				{
+					IsPublic = Access != MemberAccess.Private,
+					Name = ImmutableArray.Create(Name),
+					Size = ImmutableArray.Create(ExpressionType.PrimitiveSize.Value),
+				});
+			}
+			throw new Exception("Expression operands must not be module instances");
+        }
 	}
 
 	class PropertyBinding : MemberBinding
 	{
 		private readonly PropertyDeclarationSyntax syntax;
 
-		public MethodBindingBase GetAccessor { get; }
-		public MethodBindingBase SetAccessor { get; }
+		public AccessorBinding GetAccessor { get; }
+		public AccessorBinding SetAccessor { get; }
+		public bool IsAuto => GetAccessor?.IsAuto == true && SetAccessor?.IsAuto != false;
 
-		public PropertyBinding(PropertyDeclarationSyntax syntax, Binding parent) : base(syntax.Identifier.Text, parent)
+		public bool CanRead => GetAccessor != null;
+		public bool CanWrite => SetAccessor != null || GetAccessor?.IsAuto == true;
+
+		public PropertyBinding(PropertyDeclarationSyntax syntax, Binding parent) : base(syntax.Modifiers, syntax.Identifier.Text, parent)
 		{
 			this.syntax = syntax;
-			var getSyntax = syntax.AccessorList.Accessors.FirstOrDefault(a => a.Keyword.Kind() == SyntaxKind.GetKeyword);
-			var setSyntax = syntax.AccessorList.Accessors.FirstOrDefault(a => a.Keyword.Kind() == SyntaxKind.SetKeyword);
-			GetAccessor = getSyntax == null ? null : new AccessorBinding(getSyntax, this);
-			SetAccessor = getSyntax == null ? null : new AccessorBinding(setSyntax, this);
+			if (syntax.ExpressionBody != null)
+			{
+				GetAccessor = new AccessorBinding(syntax.ExpressionBody, this);
+			}
+			else
+			{
+				var getSyntax = syntax.AccessorList.Accessors.FirstOrDefault(a => a.Keyword.Kind() == SyntaxKind.GetKeyword);
+				var setSyntax = syntax.AccessorList.Accessors.FirstOrDefault(a => a.Keyword.Kind() == SyntaxKind.SetKeyword);
+				GetAccessor = getSyntax == null ? null : new AccessorBinding(getSyntax, this);
+				SetAccessor = getSyntax == null ? null : new AccessorBinding(setSyntax, this);
+            }
 		}
 
 		public override void ResolveTypes(UsingState usingState)
@@ -57,7 +118,7 @@ namespace OhdlCompiler
 
 	class MethodGroupBinding : MemberBinding
 	{
-		public MethodGroupBinding(string name, Binding parent) : base(name, parent) { }
+		public MethodGroupBinding(string name, Binding parent) : base(default(SyntaxTokenList), name, parent) { }
 
 		protected readonly List<MethodBinding> Methods = new List<MethodBinding>();
 
@@ -107,27 +168,40 @@ namespace OhdlCompiler
 			Body?.ResolveTypes(usingState);
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
-			ExpressionBody?.ResolveArraySizes();
-			Body?.ResolveArraySizes();
+			ExpressionBody?.ResolveInterface();
+			Body?.ResolveInterface();
 		}
+		
 	}
 
 	class AccessorBinding : MethodBindingBase
 	{
 		private readonly AccessorDeclarationSyntax syntax;
+		private readonly ExpressionSyntax expressionBody;
 
 		public bool IsAuto => syntax.Body == null && syntax.ExpressionBody == null;
 
 		public AccessorBinding(AccessorDeclarationSyntax syntax, Binding parent) :
-			base(syntax.Keyword.Text, syntax.Body, syntax.ExpressionBody, parent)
+			base($"{syntax.Keyword.Text}_{parent.Name}", syntax.Body, syntax.ExpressionBody, parent)
 		{
 			this.syntax = syntax;
 		}
 
+		public AccessorBinding(ArrowExpressionClauseSyntax syntax, Binding parent) :
+			base("get", null, syntax, parent)
+		{
+			expressionBody = syntax.Expression;
+		}
+
 		public override void ResolveTypes(UsingState usingState)
 		{
+			if (expressionBody != null)
+			{
+				ReturnType = ((PropertyDeclarationSyntax)expressionBody.Parent.Parent).Type.GetTypeBinding(usingState, this);
+				return;
+			}
 			switch (syntax.Keyword.Kind())
 			{
 				case SyntaxKind.GetKeyword:
@@ -179,17 +253,6 @@ namespace OhdlCompiler
 			// None
 		}
 
-		public HardwareEvent ToHardware()
-		{
-			return new HardwareEvent
-			{
-				Invert = false,
-				//Trigger = Trigger.ToHardware(),
-				//Statement = Body.ToHardware(),
-			};
-
-		}
-
 		public override Binding GetChild(string name)
 		{
 			return Parent?.GetChild(name);
@@ -206,10 +269,10 @@ namespace OhdlCompiler
 			Body.ResolveTypes(usingState);
 		}
 
-		public override void ResolveArraySizes()
+		public override void ResolveInterface()
 		{
-			Trigger.ResolveArraySizes();
-			Body.ResolveArraySizes();
+			Trigger.ResolveInterface();
+			Body.ResolveInterface();
 		}
 	}
 

@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace OhdlCompiler
 {
-	class TypeName : IEquatable<TypeName>
+	public class TypeName : IEquatable<TypeName>
 	{
 		public TypeName Next { get; }
 		public string Name { get; }

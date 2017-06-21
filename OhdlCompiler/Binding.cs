@@ -3,18 +3,18 @@ using System.Collections.Immutable;
 
 namespace OhdlCompiler
 {
-	struct UsingState
+	public struct UsingState
 	{
 		public ImmutableArray<TypeName> Usings { get; set; }
 		public ImmutableArray<KeyValuePair<string, TypeName>> Aliases { get; set; }
 	}
 
-	interface ITypeProvider
+	public interface ITypeProvider
 	{
 		ITypeProvider GetType(TypeName name, UsingState state, bool traverseUp, ImmutableArray<object> genericArgs, Binding context);
 	}
 
-    abstract class Binding
+    public abstract class Binding
 	{
 		public Binding Parent { get; }
 		public string Name { get; }
@@ -51,7 +51,7 @@ namespace OhdlCompiler
 
 		public abstract void ResolveTypes(UsingState usingState);
 		public abstract void ResolveExpressions(UsingState usingState);
-		public abstract void ResolveArraySizes();
+		public abstract void ResolveInterface();
 
 		protected Binding(string name, Binding parent)
 		{
